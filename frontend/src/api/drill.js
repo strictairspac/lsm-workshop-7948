@@ -1,0 +1,11 @@
+import{api,post}from'./client.js';
+const base='/drill/sessions';
+export const listSessions=()=>api(base);
+export const createSession=data=>post(base,data);
+export const sessionDetail=id=>api(base+'/'+id);
+export const begin=(id,label)=>post(base+'/'+id+'/begin',{label});
+export const readRange=(id,payload)=>post(base+'/'+id+'/read',payload);
+export const writeKey=(id,payload)=>post(base+'/'+id+'/write',payload);
+export const commitTxn=(id,transaction_id)=>post(base+'/'+id+'/commit',{transaction_id});
+export const rollbackTxn=(id,transaction_id)=>post(base+'/'+id+'/rollback',{transaction_id});
+export const compact=(id)=>post(base+'/'+id+'/compact',{});

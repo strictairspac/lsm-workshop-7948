@@ -5,6 +5,8 @@ from src.models.dataset import Dataset
 from src.models.config import Config
 from src.models.trial import Trial
 from src.models.audit import Audit
+from src.models.drill import DrillSession
+from src.services import drill_engine
 from src.utils.password import hash_password
 DEMO=[{'op':'put','key':'sensor-01','value':'18.2'},{'op':'put','key':'sensor-02','value':'19.1'},{'op':'put','key':'sensor-03','value':'22.4'},{'op':'put','key':'sensor-04','value':'17.0'},{'op':'put','key':'sensor-01','value':'18.8'},{'op':'delete','key':'sensor-02'},{'op':'put','key':'sensor-05','value':'21.6'},{'op':'put','key':'sensor-06','value':'20.3'},{'op':'delete','key':'sensor-03'},{'op':'put','key':'sensor-07','value':'23.0'},{'op':'put','key':'sensor-01','value':'19.0'},{'op':'put','key':'sensor-08','value':'18.9'}]
 def seed():
@@ -20,5 +22,13 @@ def seed():
         for name,limit,trigger,depth,final in configs:
             if not db.scalar(select(Config).where(Config.name==name)):db.add(Config(name=name,memtable_limit=limit,l0_trigger=trigger,max_levels=depth,final_compaction=final))
         db.commit()
-        return {name:db.query(model).count() for name,model in [('users',User),('datasets',Dataset),('configs',Config),('trials',Trial)]}
+        early=db.scalar(select(Dataset).where(Dataset.name=='北岭站点-早班写入'))
+        drill_name='两班巡检-事务演练场'
+        if early and not db.scalar(select(DrillSession).where(DrillSession.name==drill_name)):
+            state=drill_engine.new_session(drill_name,'从早班写入批次建立；两笔事务可交错读取 sensor 键范围并演练整笔退回。',early.entries,early.id)
+            row=DrillSession(name=drill_name,description=state['description'],dataset_id=early.id,state=state)
+            db.add(row);db.commit();db.refresh(row)
+            state['id']=row.id;row.state=state;db.commit()
+        db.commit()
+        return {name:db.query(model).count() for name,model in [('users',User),('datasets',Dataset),('configs',Config),('trials',Trial),('drill_sessions',DrillSession)]}
 if __name__=='__main__':print(seed())
